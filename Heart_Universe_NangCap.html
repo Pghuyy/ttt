@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Heart Universe 💗</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05030b}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
+.ui{position:fixed;inset:0;pointer-events:none;display:grid;place-items:center}
+.title{text-align:center;color:#fff;opacity:.95;text-shadow:0 0 10px #ff72bb,0 0 28px #ff3d9b,0 0 55px #b52bff;user-select:none}
+.title h1{font-size:clamp(34px,8vw,82px);margin:0;font-weight:800;letter-spacing:.06em}
+.title p{margin:8px 0 0;font-size:clamp(12px,2.5vw,20px);letter-spacing:.28em;opacity:.8}
+.hint{position:fixed;bottom:max(22px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);color:#fff8;font-size:13px;letter-spacing:.08em;white-space:nowrap;pointer-events:none}
+button{position:fixed;right:18px;top:max(18px,env(safe-area-inset-top));z-index:3;border:1px solid #ffffff25;background:#ffffff0d;color:#fff;padding:9px 13px;border-radius:999px;backdrop-filter:blur(10px);cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="toggle">✨</button>
+
+<script>
+(()=> {
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d",{alpha:false});
+const TAU=Math.PI*2; let W=0,H=0,DPR=1,last=performance.now(),running=true;
+let particles=[],sparks=[],bursts=[],stars=[];
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pointer={x:-9999,y:-9999,active:false};
+
+function resize(){
+ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight;
+ canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+ ctx.setTransform(DPR,0,0,DPR,0,0);
+ const count=Math.min(260,Math.max(90,Math.floor(W*H/6500)));
+ stars=Array.from({length:count},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.2,a:Math.random()*6.28,s:Math.random()*1.2+.3}));
+}
+addEventListener("resize",resize,{passive:true});resize();
+
+function heart(t){
+ return {x:16*Math.sin(t)**3,y:-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))};
+}
+function makeParticle(){
+ const p=heart(Math.random()*TAU),scale=Math.min(W,H)/36;
+ return {x:W/2+p.x*scale,y:H/2+p.y*scale,vx:(Math.random()-.5)*18,vy:(Math.random()-.5)*18,
+ life:0,max:1.2+Math.random()*1.6,size:.7+Math.random()*2.1};
+}
+function spawn(n,x=pointer.x,y=pointer.y){
+ n=reduce?Math.min(n,2):n;
+ for(let i=0;i<n;i++){const a=Math.random()*TAU,s=25+Math.random()*90;
+ sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0,max:.45+Math.random()*.65,size:1+Math.random()*2.8});}
+}
+function burst(x,y){for(let i=0;i<(reduce?5:16);i++)spawn(1,x,y);bursts.push({x,y,t:0});}
+function move(e){
+ const r=canvas.getBoundingClientRect();pointer.x=e.clientX-r.left;pointer.y=e.clientY-r.top;pointer.active=true;
+ if(e.type==="pointermove"&&Math.random()<.24)spawn(1,pointer.x,pointer.y);
+}
+canvas.addEventListener("pointermove",move,{passive:true});
+canvas.addEventListener("pointerdown",e=>{move(e);burst(pointer.x,pointer.y)});
+canvas.addEventListener("pointerleave",()=>pointer.active=false);
+
+function drawHeart(cx,cy,s,a){
+ ctx.save();ctx.translate(cx,cy);ctx.scale(s,s);ctx.beginPath();
+ for(let i=0;i<=60;i++){const p=heart(i/60*TAU);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}
+ ctx.closePath();ctx.fillStyle=`rgba(255,72,166,${a})`;ctx.shadowBlur=18;ctx.shadowColor="#ff3caa";ctx.fill();ctx.restore();
+}
+function frame(now){
+ if(!running){last=now;requestAnimationFrame(frame);return}
+ const dt=Math.min((now-last)/1000,.033);last=now;
+ const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.75);
+ g.addColorStop(0,"#18091d");g.addColorStop(.45,"#090516");g.addColorStop(1,"#020107");
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(const s of stars){s.a+=dt*s.s;ctx.globalAlpha=.25+.25*Math.sin(s.a);ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,TAU);ctx.fill()}
+ ctx.globalAlpha=1;
+ const target=Math.min(1150,Math.max(380,Math.floor(W*H/1500)));
+ while(particles.length<target)particles.push(makeParticle());
+ for(const p of particles){
+   p.life+=dt;const k=Math.min(p.life/p.max,1),pulse=1+Math.sin(now*.0035)*.035;
+   p.vx+=(W/2-p.x)*.018*dt;p.vy+=(H/2-p.y)*.018*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+   const a=Math.sin(Math.min(k,1-k)*Math.PI)*.9;ctx.globalAlpha=Math.max(0,a);
+   ctx.fillStyle="#ff6fba";ctx.shadowBlur=7;ctx.shadowColor="#ff4aa9";
+   ctx.beginPath();ctx.arc(p.x,p.y,p.size*pulse,0,TAU);ctx.fill();
+   if(p.life>p.max)Object.assign(p,makeParticle());
+ }
+ ctx.shadowBlur=0;ctx.globalAlpha=1;
+ const pulse=1+Math.sin(now*.0045)*.045;
+ const glow=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.min(W,H)*.25);
+ glow.addColorStop(0,"rgba(255,55,160,.18)");glow.addColorStop(1,"rgba(255,55,160,0)");
+ ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);drawHeart(W/2,H/2,Math.min(W,H)/150*pulse,.035);
+ for(let i=sparks.length-1;i>=0;i--){
+   const s=sparks[i];s.life+=dt;s.vy+=35*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;const a=1-s.life/s.max;
+   ctx.globalAlpha=a;ctx.fillStyle="#ffb5dc";ctx.shadowBlur=10;ctx.shadowColor="#ff5db1";
+   ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,TAU);ctx.fill();if(s.life>s.max)sparks.splice(i,1);
+ }
+ ctx.globalAlpha=1;ctx.shadowBlur=0;
+ for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];b.t+=dt;ctx.strokeStyle=`rgba(255,100,190,${1-b.t/.8})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,b.t*100,0,TAU);ctx.stroke();if(b.t>.8)bursts.splice(i,1)}
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.getElementById("toggle").onclick=()=>{running=!running;document.getElementById("toggle").textContent=running?"✨ Hiệu ứng":"▶️ Tiếp tục"};
+})();
+</script>
+</body>
+</html>
